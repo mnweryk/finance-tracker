@@ -1,0 +1,4 @@
+[google_sheets]
+spreadsheet_id = "1vqscz6n2uRE6trTthVKIMwmG24XPr8HmO2KYj_urQwM"
+credentials_path = ".secrets/google_credentials.json"
+worksheets = ["Stan", "Akcje"]
