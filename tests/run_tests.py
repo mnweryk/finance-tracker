@@ -7,6 +7,13 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 if __name__ == "__main__":
-    print("Starting tests")
+    print("Starting tests with coverage")
+    # Coverage options: measure src, show missing lines, generate HTML report
+    coverage_args = [
+        "tests",
+        "--cov=src",
+        "--cov-report=term-missing",
+        "--cov-report=html",
+    ]
     # Pass any additional arguments to pytest
-    sys.exit(pytest.main(["tests"] + sys.argv[1:]))
+    sys.exit(pytest.main(coverage_args + sys.argv[1:]))

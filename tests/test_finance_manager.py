@@ -1,77 +1,68 @@
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 import pytest
-from unittest.mock import mock_open
+from pathlib import Path
 
-from fetchers.google_sheets import GoogleSheetsFetcher
+from unittest.mock import patch, Mock, mock_open
 from finance_manager import FinanceManager
 
+MAGIC_TOML_CONTENT = b"""[google_sheets]
+spreadsheet_id = "exemplary_spreadsheets_id"
+credentials_path = "road/to/hogwarts"
+worksheets = ["Sickles"]
+"""
 
-@pytest.fixture
-def mock_fetcher() -> MagicMock:
-    """Creates a mock GoogleSheetsFetcher."""
-    fetcher = MagicMock(spec=GoogleSheetsFetcher)
-    fetcher.fetch_worksheets.return_value = {
-        "Stan": [["Header1", "Header2"], ["Val1", "Val2"]],
-        "Akcje": [["Ticker", "Amount"], ["AAPL", "10"]],
-    }
-    return fetcher
+def test_load_config():
+    """ Test loading successful configuration from a valid config.toml file."""
+    with (patch('pathlib.Path.exists', return_value=True), 
+          patch('pathlib.Path.open', mock_open(read_data=MAGIC_TOML_CONTENT))):
+        fm = FinanceManager(config_path =  Path("hogwarts_configuration.toml"))
 
+        assert fm._config.spreadsheet_id == "exemplary_spreadsheets_id"
+        assert fm._config.credentials_path == "road/to/hogwarts"
+        assert fm._config.worksheets == ["Sickles"]
 
-@pytest.fixture
-def sample_config_file(tmp_path: Path) -> Path:
-    """Creates a temporary valid config.toml file for testing."""
-    config_dir = tmp_path / "config"
-    config_dir.mkdir()
-    config_file = config_dir / "config.toml"
-    
-    config_content = """
-    [google_sheets]
-    credentials_path = ".secrets/google_credentials.json"
-    spreadsheet_id = "dummy_spreadsheet_id"
-    worksheets = ["Stan", "Akcje"]
-    """
-    config_file.write_text(config_content, encoding="utf-8")
-    return config_file
+def test_load_empty_config():
+    """Test loading empty config"""
+    with (patch('pathlib.Path.exists', return_value=True), 
+          patch('pathlib.Path.open', mock_open(read_data=b""))):
+        with pytest.raises(ValueError):
+            FinanceManager(config_path =  Path("hogwarts_configuration.toml"))
 
+@pytest.mark.parametrize("missing_field", [
+    "credentials_path",
+    "spreadsheet_id",
+    "worksheets",
+])
+def test_load_config_missing_field(missing_field):
+    """Test loading configuration with missing required fields in the config.toml file."""
+    toml_content = "[google_sheets]"
+    for field in ["credentials_path","spreadsheet_id", "worksheets"]:
+        if field != missing_field:
+            toml_content += f'\n{field} = "expecto_patronum"'
 
-def test_init_with_custom_fetcher(mock_fetcher: MagicMock, sample_config_file: Path) -> None:
-    """Verify that FinanceManager uses injected fetcher and loads worksheet names from config."""
-    manager = FinanceManager(fetcher=mock_fetcher, config_path=sample_config_file)
-    
-    assert manager._google_sheets_fetcher == mock_fetcher
-    assert manager._worksheet_names == ["Stan", "Akcje"]
+    with (patch('pathlib.Path.exists', return_value=True), 
+        patch('pathlib.Path.open', mock_open(read_data=toml_content.encode()))):
+        with pytest.raises(ValueError):
+            FinanceManager(config_path=Path("road/to/hogwarts"))
 
+def test_missing_file():
+    """Test running FinanceManager with missing credentials file"""
+    with patch('pathlib.Path.open', return_value=False):
+        with pytest.raises(FileNotFoundError):
+            FinanceManager(config_path=Path("fake/road/to/hogwarts"))
 
-def test_load_sheets_data_forwards_to_fetcher(mock_fetcher: MagicMock, sample_config_file: Path) -> None:
-    """Verify load_sheets_data delegates directly to GoogleSheetsFetcher.fetch_worksheets."""
-    manager = FinanceManager(fetcher=mock_fetcher, config_path=sample_config_file)
-    data = manager.load_sheets_data()
+@pytest.mark.parametrize("credentials_file_exists", [True, False])
+def test_missing_credentials_file(credentials_file_exists):
+    """Test running FinanceManager load_sheets_data with missing credentials file"""
+    with (patch('pathlib.Path.exists', return_value=True), 
+          patch('pathlib.Path.open', mock_open(read_data=MAGIC_TOML_CONTENT))):
+        fm = FinanceManager(config_path =  Path("hogwarts_configuration.toml")) 
 
-    mock_fetcher.fetch_worksheets.assert_called_once_with(["Stan", "Akcje"])
-    assert "Stan" in data
-    assert "Akcje" in data
-    assert data["Stan"][0] == ["Header1", "Header2"]
-
-
-def test_missing_config_file_raises_error(tmp_path: Path) -> None:
-    """Verify FileNotFoundError is raised when config file does not exist."""
-    non_existent_config = tmp_path / "missing_config.toml"
-    
-    with pytest.raises(FileNotFoundError, match="Config file not found"):
-        FinanceManager(config_path=non_existent_config)
-
-
-@patch("finance_manager.Path.exists")
-@patch(
-    "finance_manager.Path.open",
-    new_callable=mock_open,
-    read_data=b'[google_sheets]\ncredentials_path=".secrets/fake.json"\nspreadsheet_id="dummy"\nworksheets=["Stan"]'
-)
-def test_missing_credentials_file_raises_error(mock_file, mock_exists):
-    """Verify FileNotFoundError is raised when credentials JSON is missing (pure mock)."""
-    mock_exists.side_effect = [True, False]
-
-    with pytest.raises(FileNotFoundError, match="Google credentials file not found"):
-        FinanceManager(config_path=Path("dummy_config.toml"))
+    with (patch('pathlib.Path.exists', return_value=credentials_file_exists),
+          patch('finance_manager.GoogleSheetsHoldingParser') as holdling_mock):
+        if not credentials_file_exists:
+            with pytest.raises(FileNotFoundError):
+                fm.load_sheets_data()
+            holdling_mock.assert_not_called()
+        else:
+            fm.load_sheets_data()
+            holdling_mock.assert_called_once()

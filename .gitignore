@@ -5,3 +5,6 @@ __pycache__/
 .secrets/
 
 .vscode/
+
+.github/
+.coverage
