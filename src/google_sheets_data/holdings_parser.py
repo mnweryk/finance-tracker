@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class AssetAttributes:
+    """Column names expected in each worksheet asset block."""
+
     NAME = "Name"
     TICKER = "Ticker"
     CURRENCY = "Currency"
@@ -17,13 +19,31 @@ class AssetAttributes:
 
 
 class GoogleSheetsHoldingParser:
-    def __init__(self, config: GoogleSheetsConfig) -> None:
-        self.config = config
-        self.spreadsheet_dto = []
-        self.create_dtos()
+    """Parse Google Sheets worksheets into holding DTOs."""
 
-    def create_dtos(self):
-        """Creates DTOs for each worksheet in the Google Sheets configuration."""
+    def __init__(self, config: GoogleSheetsConfig) -> None:
+        """Create a parser and eagerly load all configured worksheet DTOs.
+
+        Args:
+            config: Google Sheets credentials, spreadsheet, and worksheet configuration.
+
+        Raises:
+            Exceptions raised while authenticating, fetching worksheets, or parsing data.
+        """
+        self.config: GoogleSheetsConfig = config
+        self.spreadsheet_dto: list[GoogleSheetsRowDTO] = self.create_dtos()
+
+    def create_dtos(self) -> list[GoogleSheetsRowDTO]:
+        """Create DTOs for each configured worksheet.
+
+        Worksheets are expected to contain portfolio totals at index 1, column headers
+        at index 2, and asset rows from index 3 onward. Rows without an asset name are
+        skipped, and invalid quantities are converted to ``Decimal("0")``.
+
+        Returns:
+            list[GoogleSheetsRowDTO]: Parsed holdings from all configured worksheets.
+        """
+        dtos: list[GoogleSheetsRowDTO] = []
         for worksheet in self.config.worksheets:
             raw_data = GoogleSheetsFetcher(self.config.credentials_path, self.config.spreadsheet_id).fetch_worksheet(worksheet)
             header_row = raw_data[2]
@@ -36,21 +56,21 @@ class GoogleSheetsHoldingParser:
             column_mapping = {col.strip(): i for i, col in enumerate(portfolio_header) if col.strip() in [AssetAttributes.NAME, AssetAttributes.TICKER, AssetAttributes.CURRENCY, AssetAttributes.QUANTITY]}
 
             for row in raw_data[3:]:
-                dtos = self.parse_row(row, portfolios, step, column_mapping)
-                for dto in dtos:
-                    self.spreadsheet_dto.append(dto)
-                    logger.debug(f"Created DTO: {dto}")
-                    print(f"Created DTO: {dto}")
+                row_dtos = self.parse_row(worksheet, row, portfolios, step, column_mapping)
+                for dto in row_dtos:
+                    dtos.append(dto)
+
+        return dtos
 
     @staticmethod
-    def get_portfolios(raw_data: list):
-        """Parses raw data row Google Sheet to obtain list of portoflios
+    def get_portfolios(raw_data: list[str]) -> list[str]:
+        """Extract portfolio names from a worksheet totals row.
 
         Args:
-            raw_data: list visulising whole Google Sheet header row
+            raw_data: Cells from the row containing portfolio totals and names.
 
         Returns:
-            List of portfolio names
+            list[str]: Portfolio names inferred from the row.
         """
         portfolios = []
         portfolios.append(raw_data[0])
@@ -63,19 +83,28 @@ class GoogleSheetsHoldingParser:
                 logger.debug(f"Failed to parse {element}")
         return portfolios
 
-    def parse_row(self, row: list[str], portfolios: list[str], step: int, column_mapping: dict) -> list[GoogleSheetsRowDTO]:
-        """Parses a single row of Google Sheet data into a list of GoogleSheetsRowDTOs.
+    def parse_row(
+        self,
+        worksheet: str,
+        row: list[str],
+        portfolios: list[str],
+        step: int,
+        column_mapping: dict[str, int],
+    ) -> list[GoogleSheetsRowDTO]:
+        """Parse one worksheet row into one DTO per populated portfolio block.
 
         Args:
-            row: List of cell values from a single row in the Google Sheet.
-            portfolios: List of portfolio names corresponding to the columns in the row.
-            step: Number of columns per portfolio.
-            column_mapping: Mapping of column names to column indices within a portfolio block.
+            worksheet: Worksheet name stored in each DTO as ``asset_type``.
+            row: Cell values from one worksheet row.
+            portfolios: Portfolio names corresponding to column blocks in the row.
+            step: Number of columns in each portfolio block.
+            column_mapping: Column names mapped to indices within a block.
 
         Returns:
-            A list of GoogleSheetsRowDTO objects.
+            list[GoogleSheetsRowDTO]: DTOs for non-empty asset names. Invalid or missing
+                quantities are represented by ``Decimal("0")``.
         """
-        dtos = []
+        dtos: list[GoogleSheetsRowDTO] = []
 
         for i, portfolio in enumerate(portfolios):
             start = i * step
@@ -110,6 +139,7 @@ class GoogleSheetsHoldingParser:
                 qty = Decimal("0")
 
             dtos.append(GoogleSheetsRowDTO(
+                asset_type=worksheet,
                 portfolio_name=portfolio,
                 name=name,
                 quantity=qty,

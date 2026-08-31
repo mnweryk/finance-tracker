@@ -30,13 +30,14 @@ def test_portfolios(input, expected):
 def test_parse_row():
     """Test parsing asset data for each portfolio block."""
     parser = object.__new__(GoogleSheetsHoldingParser)
+    worksheet = "Hogwarts Holdings"
     row = [
         "Daily Prophet", "DP", " Galleons ", "2,5", "Gringotts", "GRI", "Knuts", "600%",
     ]
     portfolios = ["Harry's Wallet", "Hermione's"]
     column_mapping = {"Name": 0, "Ticker": 1, "Currency": 2, "Quantity": 3}
 
-    dtos = parser.parse_row(row, portfolios, 4, column_mapping)
+    dtos = parser.parse_row(worksheet, row, portfolios, 4, column_mapping)
 
     assert len(dtos) == 2
     assert dtos[0].portfolio_name == "Harry's Wallet"
@@ -48,6 +49,8 @@ def test_parse_row():
     assert dtos[1].name == "Gringotts"
     assert dtos[1].ticker == "GRI"
     assert dtos[1].quantity == Decimal("6")
+
+    assert dtos[0].asset_type == dtos[1].asset_type == worksheet
 
 
 def test_create_dtos():

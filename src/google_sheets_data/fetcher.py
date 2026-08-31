@@ -18,6 +18,9 @@ class GoogleSheetsFetcher:
         Args:
             credentials_path: Path to the Google service account JSON credentials file.
             spreadsheet_id: Google Spreadsheet ID to open.
+
+        Raises:
+            Exceptions raised by the Google credentials, authorization, or Sheets client.
         """
         credentials = Credentials.from_service_account_file(credentials_path, scopes=READ_ONLY_SCOPES)
         client = gspread.authorize(credentials)
@@ -30,7 +33,7 @@ class GoogleSheetsFetcher:
             worksheet_name: Name of the worksheet tab to read.
 
         Returns:
-            Raw worksheet rows, including the header row when present.
+            list[list[Any]]: Raw cell values returned by the worksheet.
         """
         worksheet = self._spreadsheet.worksheet(worksheet_name)
         return worksheet.get_all_values()
@@ -42,6 +45,6 @@ class GoogleSheetsFetcher:
             worksheet_names: Worksheet tab names to read.
 
         Returns:
-            Mapping of worksheet name to raw worksheet rows.
+            dict[str, list[list[Any]]]: Raw rows keyed by worksheet name.
         """
         return {worksheet_name: self.fetch_worksheet(worksheet_name) for worksheet_name in worksheet_names}

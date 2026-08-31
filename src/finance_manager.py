@@ -1,7 +1,10 @@
 import tomllib
 from pathlib import Path
-from typing import Any
 import logging
+
+from domain.assets.asset_factory import AssetFactory
+from domain.wallet import Wallet
+
 from google_sheets_data.config import GoogleSheetsConfig
 from google_sheets_data.holdings_parser import GoogleSheetsHoldingParser
 from google_sheets_data.row_dto import GoogleSheetsRowDTO
@@ -14,32 +17,35 @@ logger.setLevel(logging.DEBUG)
 
 
 class FinanceManager:
-    """Orchestrates loading portfolio data from external sources."""
+    """Build a wallet from holdings loaded from Google Sheets."""
 
     def __init__(self, config_path: Path | None = None) -> None:
-        """Load configuration and initialize sheet fetcher dependencies.    
+        """Load configuration and create an empty wallet.
 
         Args:
-            config_path: Optional path to config.toml. Defaults to config/config.toml in the project root.
+            config_path: Optional path to ``config.toml``. Defaults to the project config.
 
         Raises:
-            FileNotFoundError: If the config file or credentials JSON file is missing.
+            FileNotFoundError: If the configuration file is missing.
+            ValueError: If required Google Sheets configuration fields are missing.
         """
 
-        self._config = self.load_config(config_path)
+        self._config: GoogleSheetsConfig = self.load_config(config_path)
+        self.wallet: Wallet = Wallet()
 
 
     def load_config(self, config_path: Path | None = None) -> GoogleSheetsConfig:
-        """Load configuration from toml file
+        """Load Google Sheets configuration from a TOML file.
 
         Args:
-            config_path: path to toml configuration file. If not provided default is taken
+            config_path: Optional TOML configuration path. Defaults to the project config.
 
         Returns:
-            Configuration class object
+            GoogleSheetsConfig: Parsed Google Sheets configuration.
 
-        Raises: 
-            FileNotFoundError: If the config file is missing.
+        Raises:
+            FileNotFoundError: If the configuration file is missing.
+            ValueError: If required Google Sheets fields are missing.
         """
         config_file = config_path or DEFAULT_CONFIG_PATH
         if not config_file.exists():
@@ -60,11 +66,15 @@ class FinanceManager:
         return GoogleSheetsConfig(**config["google_sheets"])
 
 
-    def load_sheets_data(self) -> GoogleSheetsRowDTO:
+    def load_sheets_data(self) -> list[GoogleSheetsRowDTO]:
         """Load portfolio holdings from configured Google Sheets worksheets.
 
         Returns:
-            GoogleSheetsRowDTO: Parsed portfolio holding data.
+            list[GoogleSheetsRowDTO]: Parsed portfolio holding data.
+
+        Raises:
+            FileNotFoundError: If the credentials file is missing.
+            Exceptions raised while authenticating or fetching Google Sheets data.
         """
         if not Path(self._config.credentials_path).exists():
             raise FileNotFoundError(
@@ -72,11 +82,41 @@ class FinanceManager:
                 f"Please verify that your service account JSON key is placed in {self._config.credentials_path}"
             )
 
-        return GoogleSheetsHoldingParser(self._config).create_dtos()
+        return GoogleSheetsHoldingParser(self._config).spreadsheet_dto
+
+
+    def build_wallet(self) -> None:
+        """Build the wallet from parsed holdings and add missing portfolios.
+
+        The method mutates ``self.wallet`` and does not reset it before adding data.
+
+        Raises:
+            ValueError: If a holding contains an unsupported asset type.
+            FileNotFoundError: If the Google credentials file is missing.
+        """
+        sheet_dtos = self.load_sheets_data()
+        for dto in sheet_dtos:
+            kwargs = {
+                "asset_type": dto.asset_type,
+                "name": dto.name,
+                "currency": dto.currency,
+                "quantity": dto.quantity
+            }
+            if dto.ticker is not None:
+                # Do not include ticker in kwargs if it's None to avoid passing it to AssetFactory.create
+                kwargs["ticker"] = dto.ticker
+
+            asset = AssetFactory.create(**kwargs)
+            if dto.portfolio_name not in [portfolio.name for portfolio in self.wallet.get_portfolios()]:
+                self.wallet.add_portfolio(portfolio_name=dto.portfolio_name)
+
+            self.wallet.add_asset_to_portfolio(dto.portfolio_name, asset)
+
 
 
 if __name__ == "__main__":
     manager = FinanceManager()
-    worksheet_data = manager.load_sheets_data()
-
-    print(worksheet_data)
+    manager.build_wallet()
+    print(manager.wallet)
+    print('\n\n')
+    print(manager.wallet.print_wallet_portfolios())

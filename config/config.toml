@@ -1,4 +1,5 @@
 [google_sheets]
 spreadsheet_id = "11hl-3ZrW_qhmh9NdaHlZ7T4rv9h-BueOZbHlbEkiF9Q"
 credentials_path = ".secrets/google_credentials.json"
-worksheets = ["Cash", "Bonds", "Bitcoin", "Gold", "Stock"]
+worksheets = ["Cash", "Bond", "Crypto", "Gold", "Stock"]
+# "Bonds", "Bitcoin", "Gold", "Stock"]
