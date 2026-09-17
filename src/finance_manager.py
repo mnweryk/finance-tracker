@@ -1,7 +1,9 @@
-import tomllib
 from pathlib import Path
 import logging
 
+from dotenv import load_dotenv
+
+from config_reader import ConfigReader
 from domain.assets.asset_factory import AssetFactory
 from domain.wallet import Wallet
 
@@ -9,8 +11,12 @@ from google_sheets_data.config import GoogleSheetsConfig
 from google_sheets_data.holdings_parser import GoogleSheetsHoldingParser
 from google_sheets_data.row_dto import GoogleSheetsRowDTO
 
+from db.repository import WalletSnapshotModel, PortfolioSnapshotModel, AssetSnapshotModel
+from db.connection import DatabaseConnection
+from db.repository import SnapshotRepository
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.toml"
+DEFAULT_SECRETS_PATH = PROJECT_ROOT / ".secrets" / "secrets.env"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -29,41 +35,22 @@ class FinanceManager:
             FileNotFoundError: If the configuration file is missing.
             ValueError: If required Google Sheets configuration fields are missing.
         """
-
-        self._config: GoogleSheetsConfig = self.load_config(config_path)
+        self.load_secrets()
+        self._config: ConfigReader = ConfigReader(config_path=config_path)
         self.wallet: Wallet = Wallet()
 
 
-    def load_config(self, config_path: Path | None = None) -> GoogleSheetsConfig:
-        """Load Google Sheets configuration from a TOML file.
+    def load_secrets(self, secrets_path: Path | None = None) -> dict[str, str]:
+        """Load secrets from a .env file.
 
         Args:
-            config_path: Optional TOML configuration path. Defaults to the project config.
-
-        Returns:
-            GoogleSheetsConfig: Parsed Google Sheets configuration.
-
-        Raises:
-            FileNotFoundError: If the configuration file is missing.
-            ValueError: If required Google Sheets fields are missing.
+            secrets_path: Optional path to the .env file. Defaults to the project secrets.
         """
-        config_file = config_path or DEFAULT_CONFIG_PATH
-        if not config_file.exists():
-            raise FileNotFoundError(
-                f"Config file not found at '{config_file}'. "
-            )
-
-        with config_file.open("rb") as config_handle:
-            config = tomllib.load(config_handle)
-
-        required_fields = ["credentials_path", "spreadsheet_id", "worksheets"]
-        if not all(field in config.get("google_sheets", {}) for field in required_fields):
-            raise ValueError(
-                f"Config file '{config_file}' is missing required fields. "
-                f"Please ensure that 'credentials_path', 'spreadsheet_id', and 'worksheets' are present."
-            )
-
-        return GoogleSheetsConfig(**config["google_sheets"])
+        secrets_path = secrets_path or DEFAULT_SECRETS_PATH
+        if secrets_path.exists():
+            load_dotenv(dotenv_path=secrets_path)
+        else:
+            logger.debug(f"Secrets file not found at '{secrets_path}'. Skipping loading secrets.")
 
 
     def load_sheets_data(self) -> list[GoogleSheetsRowDTO]:
@@ -76,13 +63,13 @@ class FinanceManager:
             FileNotFoundError: If the credentials file is missing.
             Exceptions raised while authenticating or fetching Google Sheets data.
         """
-        if not Path(self._config.credentials_path).exists():
+        if not Path(self._config.google_config.credentials_path).exists():
             raise FileNotFoundError(
-                f"Google credentials file not found at '{self._config.credentials_path}'. "
-                f"Please verify that your service account JSON key is placed in {self._config.credentials_path}"
+                f"Google credentials file not found at '{self._config.google_config.credentials_path}'. "
+                f"Please verify that your service account JSON key is placed in {self._config.google_config.credentials_path}"
             )
 
-        return GoogleSheetsHoldingParser(self._config).spreadsheet_dto
+        return GoogleSheetsHoldingParser(self._config.google_config).spreadsheet_dto
 
 
     def build_wallet(self) -> None:
@@ -120,3 +107,9 @@ if __name__ == "__main__":
     print(manager.wallet)
     print('\n\n')
     print(manager.wallet.print_wallet_portfolios())
+
+    db_connection = DatabaseConnection(manager._config.db_config) 
+
+    with db_connection.get_session() as session:
+        db_snapshot_repository = SnapshotRepository(session=session)
+        db_snapshot_repository.save_snapshot(wallet=manager.wallet)

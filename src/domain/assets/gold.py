@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from .asset import Asset
 from  market_data_provider import MarketDataProvider
 
@@ -12,7 +14,7 @@ class Gold(Asset):
         # Currently as market data provider only provides gold price in PLN, we set currency to PLN
         self.currency = "PLN"
 
-    @property
+    @cached_property
     def unit_price_in_currency(self) -> Decimal:
         """Return the current gold price supplied by the market data provider.
 
@@ -21,7 +23,7 @@ class Gold(Asset):
         """
         return MarketDataProvider.get_gold_price_pln()
 
-    @property
+    @cached_property
     @MarketDataProvider.convert_to_pln
     def total_value_pln(self) -> Decimal:
         """Return the gold holding value converted to PLN.

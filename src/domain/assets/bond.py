@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from .asset import Asset
 from  market_data_provider import MarketDataProvider
 
@@ -10,7 +12,7 @@ class Bond(Asset):
         super().__init__(name, currency, quantity, ticker)
         self.asset_type = "Bond"
 
-    @property
+    @cached_property
     def unit_price_in_currency(self) -> Decimal:
         """Return the placeholder bond price.
 
@@ -20,7 +22,7 @@ class Bond(Asset):
         # Placeholder implementation; in a real scenario, this would fetch the current market price of the bond.
         return Decimal("100")  # Example fixed price for demonstration purposes.
 
-    @property
+    @cached_property
     @MarketDataProvider.convert_to_pln
     def total_value_pln(self) -> Decimal:
         """Return the placeholder-priced holding value converted to PLN.

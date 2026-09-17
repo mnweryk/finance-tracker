@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from .asset import Asset
 from  market_data_provider import MarketDataProvider
 
@@ -10,7 +12,7 @@ class Stock(Asset):
         super().__init__(name, currency, quantity, ticker)
         self.asset_type = "Stock"
 
-    @property
+    @cached_property
     def unit_price_in_currency(self) -> Decimal:
         """Return the current stock price in the stock's trading currency.
 
@@ -19,7 +21,7 @@ class Stock(Asset):
         """
         return Decimal(MarketDataProvider.get_stock_price(self.ticker))
 
-    @property
+    @cached_property
     @MarketDataProvider.convert_to_pln
     def total_value_pln(self) -> Decimal:
         """Return the holding value after conversion to PLN.

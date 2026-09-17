@@ -12,8 +12,9 @@ logger.setLevel(logging.DEBUG)
 class Wallet:
     """Collection of portfolios representing the user's holdings."""
 
-    def __init__(self) -> None:
+    def __init__(self, name=None) -> None:
         self.portfolios: list[Portfolio] = []
+        self.name = name if name else "My Wallet"
 
     def __str__(self) -> str:
         return self.get_wallet_summary_by_asset_type()
