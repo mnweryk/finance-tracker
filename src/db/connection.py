@@ -24,8 +24,8 @@ class DatabaseConnection:
         Initializes the DatabaseConnection with the provided database configuration.
 
         Args:
-            db_config (DatabaseConfig): The database configuration object.
-            init_db (bool): Whether to initialize the database tables.
+            db_config: The database configuration object.
+            init_db: Whether to initialize the database tables.
             
         """
         self.engine = self.create_engine(db_config)
@@ -49,7 +49,7 @@ class DatabaseConnection:
         Creates a SQLAlchemy engine based on the provided database configuration.
 
         Args:
-            db_config (DatabaseConfig): The database configuration object.
+            db_config: The database configuration object.
 
         Returns:
             sqlalchemy.engine.Engine: The created SQLAlchemy engine.
