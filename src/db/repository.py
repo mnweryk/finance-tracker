@@ -13,35 +13,44 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class SnapshotRepositoryInterface(ABC):
-    """Abstract base class defining the repository contract for saving snapshot aggregates."""
+    """Defines the repository contract for saving snapshot aggregates."""
 
     @abstractmethod
     def save_snapshot(self, wallet: Wallet, snapshot_time: datetime | None = None) -> WalletSnapshotModel:
-        """Persists a complete time-series snapshot for a given wallet."""
+        """Persist a complete time-series snapshot for a wallet.
+
+        Args:
+            wallet: The wallet to snapshot.
+            snapshot_time: The snapshot timestamp. Defaults to the current UTC
+                time.
+
+        Returns:
+            The persisted wallet snapshot.
+        """
         pass
 
 
 class SnapshotRepository(SnapshotRepositoryInterface):
-    """SQLAlchemy implementation of the SnapshotRepositoryInterface.
-    
-    Handles the conversion and persistence of domain portfolio data into time-series
-    snapshot models for historical visualization in Grafana.
+    """SQLAlchemy implementation of the snapshot repository interface.
+
+    Converts and persists domain portfolio data into time-series snapshot
+    models for historical visualization.
     """
 
     def __init__(self, session: Session) -> None:
         self.session = session
 
     def get_or_create_wallet(self, wallet_name: str) -> WalletModel:
-        """Fetches an existing WalletModel by name or creates a new one if it does not exist.
-        
+        """Retrieve a wallet by name or create it if it does not exist.
+
         Args:
-            wallet_name: The name of the wallet to fetch or create.
+            wallet_name: The wallet name to find or create.
 
         Returns:
-            The existing or newly created WalletModel instance.
+            The existing or newly created wallet model.
 
         Raises:
-            ValueError: If the wallet_name is empty or only whitespace.
+            ValueError: If ``wallet_name`` is empty or contains only whitespace.
         """
         if not wallet_name.strip():
             raise ValueError("Wallet name cannot be empty.")
@@ -53,19 +62,23 @@ class SnapshotRepository(SnapshotRepositoryInterface):
             logger.info("Adding new wallet: %s", wallet_name)
             wallet = WalletModel(name=wallet_name)
             self.session.add(wallet)
-            self.session.flush()  # Flush to populate wallet.id
+            self.session.flush()  # Flush populates wallet.id within the active transaction
 
         return wallet
 
     def save_snapshot(self, wallet: Wallet, snapshot_time: datetime | None = None) -> WalletSnapshotModel:
-        """Saves a complete point-in-time snapshot of all sub-portfolios and their assets.
+        """Save a complete point-in-time snapshot of a wallet.
 
         Args:
-            wallet: The Wallet domain object containing portfolios and assets to snapshot.
-            snapshot_time: Optional timestamp for the snapshot. Defaults to current UTC time.
+            wallet: The wallet containing portfolios and assets to snapshot.
+            snapshot_time: The snapshot timestamp. Defaults to the current UTC
+                time.
 
         Returns:
-            The created WalletSnapshotModel entity.
+            The created wallet snapshot model.
+
+        Raises:
+            ValueError: If ``snapshot_time`` is naive.
         """
         if snapshot_time is None:
             snapshot_time = datetime.now(timezone.utc)
@@ -93,7 +106,6 @@ class SnapshotRepository(SnapshotRepositoryInterface):
             wallet_snapshot.portfolios.append(portfolio_snapshot)
 
         self.session.add(wallet_snapshot)
-        self.session.commit()
-        self.session.refresh(wallet_snapshot)
+        self.session.flush()
 
         return wallet_snapshot

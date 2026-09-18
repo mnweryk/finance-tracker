@@ -21,6 +21,7 @@ An automated financial tracking system that reads the current portfolio holdings
 
 **Clone repository and install dependencies**
 
+
 ```bash
 # Clone repository
 git clone <repository-url>
@@ -40,11 +41,25 @@ pip install -r requirements.txt
 ```
 
 **Obtain Google credentials**
+
 Create Google Service Account, manage Google Sheet access and obtain credentials .json file. 
-Place it in `.secrets/credentials.json` or custom location that will be provided in configuration file
+Place it in `.secrets/google_credentials.json`, matching the default path in
+`config/config.toml`, or use another path by updating `google_sheets.credentials_path`.
 
 For more please visit Google documentation:
 https://docs.cloud.google.com/iam/docs/service-accounts-create and https://docs.cloud.google.com/iam/docs/keys-create-delete
+
+
+**Database preparation**
+
+Fill in database configuration (PostgreSQL is currently supported driver)  in `config/config.toml`. Username and password should be available as an environment variables: `POSTGRES_USER` and `POSTGRES_PASSWORD` or available in file `.secrets/secrets.env` - if exists, file is loaded in the beggining of application run.
+
+Example file content:
+```env
+POSTGRES_USER=your_postgres_username
+POSTGRES_PASSWORD=your_postgres_password
+```
+
 
 **Configure application**
 To configure application, edit configuration file in [config/config.toml](config/config.toml)
@@ -53,6 +68,11 @@ To configure application, edit configuration file in [config/config.toml](config
 To run application, run command:
 ```bash
 python src/finance_manager.py 
+```
+
+To load holdings without saving a snapshot to the database, run:
+```bash
+python src/finance_manager.py --skip_database_save
 ```
 
 To run unit tests, run command:

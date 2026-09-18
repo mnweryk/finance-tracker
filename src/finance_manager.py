@@ -1,4 +1,5 @@
 from pathlib import Path
+import argparse
 import logging
 
 from dotenv import load_dotenv
@@ -25,7 +26,7 @@ logger.setLevel(logging.DEBUG)
 class FinanceManager:
     """Build a wallet from holdings loaded from Google Sheets."""
 
-    def __init__(self, config_path: Path | None = None) -> None:
+    def __init__(self, config_path: Path | None = None, skip_database_save: bool = False) -> None:
         """Load configuration and create an empty wallet.
 
         Args:
@@ -33,14 +34,18 @@ class FinanceManager:
 
         Raises:
             FileNotFoundError: If the configuration file is missing.
-            ValueError: If required Google Sheets configuration fields are missing.
+            ValueError: If required configuration fields are missing.
         """
         self.load_secrets()
-        self._config: ConfigReader = ConfigReader(config_path=config_path)
+        self.skip_database_save = skip_database_save
+        self._config: ConfigReader = ConfigReader(
+            config_path=config_path,
+            require_database=not skip_database_save,
+        )
         self.wallet: Wallet = Wallet()
 
 
-    def load_secrets(self, secrets_path: Path | None = None) -> dict[str, str]:
+    def load_secrets(self, secrets_path: Path | None = None) -> None:
         """Load secrets from a .env file.
 
         Args:
@@ -49,6 +54,7 @@ class FinanceManager:
         secrets_path = secrets_path or DEFAULT_SECRETS_PATH
         if secrets_path.exists():
             load_dotenv(dotenv_path=secrets_path)
+            logger.debug(f"Secrets loaded from '{secrets_path}'.")
         else:
             logger.debug(f"Secrets file not found at '{secrets_path}'. Skipping loading secrets.")
 
@@ -102,14 +108,23 @@ class FinanceManager:
 
 
 if __name__ == "__main__":
-    manager = FinanceManager()
+    parser = argparse.ArgumentParser(description="Load holdings and optionally save a database snapshot.")
+    parser.add_argument(
+        "--skip_database_save",
+        action="store_true",
+        help="Load and display holdings without saving a snapshot to the database.",
+    )
+    args = parser.parse_args()
+
+    manager = FinanceManager(skip_database_save=args.skip_database_save)
     manager.build_wallet()
     print(manager.wallet)
     print('\n\n')
     print(manager.wallet.print_wallet_portfolios())
 
-    db_connection = DatabaseConnection(manager._config.db_config) 
+    if not manager.skip_database_save:
+        db_connection = DatabaseConnection(manager._config.db_config)
 
-    with db_connection.get_session() as session:
-        db_snapshot_repository = SnapshotRepository(session=session)
-        db_snapshot_repository.save_snapshot(wallet=manager.wallet)
+        with db_connection.get_session() as session:
+            db_snapshot_repository = SnapshotRepository(session=session)
+            db_snapshot_repository.save_snapshot(wallet=manager.wallet)

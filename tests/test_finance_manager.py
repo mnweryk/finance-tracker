@@ -1,13 +1,21 @@
 import pytest
+from decimal import Decimal
 from pathlib import Path
 
-from unittest.mock import patch, mock_open
+from unittest.mock import Mock, call, patch, mock_open
 from finance_manager import FinanceManager
+from domain.wallet import Wallet
+from google_sheets_data.row_dto import GoogleSheetsRowDTO
 
 MAGIC_TOML_CONTENT = b"""[google_sheets]
 spreadsheet_id = "exemplary_spreadsheets_id"
 credentials_path = "road/to/hogwarts"
 worksheets = ["Sickles"]
+
+[database]
+host = "localhogwarts"
+port = 3407
+name = "pages_in_hp"
 """
 
 
@@ -47,3 +55,30 @@ def test_missing_credentials_file(credentials_file_exists):
         else:
             fm.load_sheets_data()
             holdling_mock.assert_called_once()
+
+
+def test_build_wallet():
+    """Build portfolios and assets from parsed Google Sheets rows."""
+    manager = object.__new__(FinanceManager)
+    manager.wallet = Wallet()
+    manager.load_sheets_data = Mock(return_value=[
+        GoogleSheetsRowDTO("stock", "Retirement", "Acme", Decimal("2"), "USD", "ACME"),
+        GoogleSheetsRowDTO("cash", "Retirement", "Savings", Decimal("100"), "PLN"),
+        GoogleSheetsRowDTO("gold", "Emergency", "Gold", Decimal("1.5"), "PLN"),
+    ])
+    created_assets = [Mock(name="stock_asset"), Mock(name="cash_asset"), Mock(name="gold_asset")]
+
+    with patch("finance_manager.AssetFactory.create", side_effect=created_assets) as create_asset:
+        manager.build_wallet()
+
+    assert [portfolio.name for portfolio in manager.wallet.get_portfolios()] == [
+        "Retirement",
+        "Emergency",
+    ]
+    assert manager.wallet.get_portfolios()[0].assets == created_assets[:2]
+    assert manager.wallet.get_portfolios()[1].assets == created_assets[2:]
+    assert create_asset.call_args_list == [
+        call(asset_type="stock", name="Acme", currency="USD", quantity=Decimal("2"), ticker="ACME"),
+        call(asset_type="cash", name="Savings", currency="PLN", quantity=Decimal("100")),
+        call(asset_type="gold", name="Gold", currency="PLN", quantity=Decimal("1.5")),
+    ]

@@ -39,7 +39,6 @@ class MarketDataProvider:
             return Decimal(0)
         exchange, stock_ticker = ticker.split(":")
         if exchange not in STOCK_TICKER_MAPPINGS:
-            print(f"Exchange {exchange} not supported. Defaulting to NYSE.")
             raise ValueError(f"Exchange {exchange} not supported.")
 
         mapped_ticker = f"{stock_ticker}.{STOCK_TICKER_MAPPINGS[exchange]}" if STOCK_TICKER_MAPPINGS[exchange] else stock_ticker
