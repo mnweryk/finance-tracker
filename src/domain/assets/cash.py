@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from .asset import Asset
 from  market_data_provider import MarketDataProvider
 
@@ -10,7 +12,7 @@ class Cash(Asset):
         super().__init__(name, currency, quantity)
         self.asset_type = "Cash"
 
-    @property
+    @cached_property
     def unit_price_in_currency(self) -> Decimal:
         """Return the fixed unit price of cash.
 
@@ -19,7 +21,7 @@ class Cash(Asset):
         """
         return Decimal("1.0")
 
-    @property
+    @cached_property
     @MarketDataProvider.convert_to_pln
     def total_value_pln(self) -> Decimal:
         """Return the cash quantity converted from its currency to PLN.

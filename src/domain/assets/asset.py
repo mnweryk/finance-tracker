@@ -1,5 +1,6 @@
 from decimal import Decimal
 from abc import ABC, abstractmethod
+from functools import cached_property
 
 
 class Asset(ABC):
@@ -28,7 +29,7 @@ class Asset(ABC):
         return summary
 
 
-    @property
+    @cached_property
     @abstractmethod
     def unit_price_in_currency(self) -> Decimal:
         """Return the price of one asset unit in its valuation currency.
@@ -39,7 +40,7 @@ class Asset(ABC):
         pass
 
 
-    @property
+    @cached_property
     @abstractmethod
     def total_value_pln(self) -> Decimal:
         """Return the total holding value converted to PLN when necessary.

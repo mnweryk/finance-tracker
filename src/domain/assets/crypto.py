@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from .asset import Asset
 from  market_data_provider import MarketDataProvider
 
@@ -10,7 +12,7 @@ class Crypto(Asset):
         super().__init__(name, currency, quantity, ticker)
         self.asset_type = "Crypto"
 
-    @property
+    @cached_property
     def unit_price_in_currency(self) -> Decimal:
         """Return the current cryptocurrency price reported in USD.
 
@@ -19,7 +21,7 @@ class Crypto(Asset):
         """
         return Decimal(MarketDataProvider.get_crypto_price(self.ticker))
 
-    @property
+    @cached_property
     @MarketDataProvider.convert_to_pln
     def total_value_pln(self) -> Decimal:
         """Return the cryptocurrency holding value converted to PLN.
