@@ -19,15 +19,18 @@ class DatabaseConnection:
         SessionLocal: The session factory instance.
     """
 
-    def __init__(self, db_config: DatabaseConfig):
+    def __init__(self, db_config: DatabaseConfig, init_db: bool = False):
         """
         Initializes the DatabaseConnection with the provided database configuration.
 
         Args:
             db_config (DatabaseConfig): The database configuration object.
+            init_db (bool): Whether to initialize the database tables.
+            
         """
         self.engine = self.create_engine(db_config)
-        self.init_db()
+        if init_db:
+            self.init_db()
         self.SessionLocal = sessionmaker(
             bind=self.engine,
             autocommit=False,
@@ -77,14 +80,3 @@ class DatabaseConnection:
             raise
         finally:
             session.close()
-
-
-def init_db(db_config: DatabaseConfig):
-    """
-    Initializes the database by creating all tables defined in the SQLAlchemy models.
-
-    Args:
-        db_config (DatabaseConfig): The database configuration object.
-    """
-    db_connection = DatabaseConnection(db_config)
-    db_connection.init_db()
