@@ -76,21 +76,14 @@ class GoogleSheetsHoldingParser:
         portfolios.append(raw_data[0])
         for index, element in enumerate(raw_data):
             try:
-                Decimal(element.replace("\xa0", "").replace(" ", "").replace("zł", "").replace(',', '.').replace('%', ''))
-                if index < len(raw_data) - 1 and raw_data[index + 1]:
-                    portfolios.append(raw_data[index + 1])
+                if element == "Total Value":
+                    if index < len(raw_data) - 2 and raw_data[index + 2]:
+                        portfolios.append(raw_data[index + 2])
             except InvalidOperation:
                 logger.debug(f"Failed to parse {element}")
         return portfolios
 
-    def parse_row(
-        self,
-        worksheet: str,
-        row: list[str],
-        portfolios: list[str],
-        step: int,
-        column_mapping: dict[str, int],
-    ) -> list[GoogleSheetsRowDTO]:
+    def parse_row(self, worksheet: str, row: list[str], portfolios: list[str], step: int, column_mapping: dict[str, int],) -> list[GoogleSheetsRowDTO]:
         """Parse one worksheet row into one DTO per populated portfolio block.
 
         Args:

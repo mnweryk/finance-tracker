@@ -63,7 +63,7 @@ def test_create_dtos():
     fetcher = Mock()
     fetcher.fetch_worksheet.return_value = [
         ["Hogwarts Holdings"],
-        ["Harry's Wallet", "100", "Hermione's", "250"],
+        ["Harry's Wallet", "", "Total Value", "100", "Hermione's", "", "Total Value", "250"],
         ["Name", "Ticker", "Currency", "Quantity", "Name", "Ticker", "Currency", "Quantity"],
         ["Daily Prophet", "DP", "Galleons", "2", "Gringotts", "GRI", "Knuts", "600"],
         ["Weasleys' Wizard Wheezes", "WWW", "Galleons", "1000"]

@@ -17,7 +17,7 @@ def test_init_creates_schema_and_session_factory() -> None:
         patch("db.connection.Base.metadata.create_all") as create_all,
         patch("db.connection.sessionmaker", return_value=session_factory) as make_session,
     ):
-        connection = DatabaseConnection(config)
+        connection = DatabaseConnection(config, init_db=True)
 
     assert connection.engine is engine
     assert connection.SessionLocal is session_factory
