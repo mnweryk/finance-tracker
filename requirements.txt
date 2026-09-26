@@ -1,5 +1,7 @@
 gspread>=6.2.1
 pytest
+pytest-cov
+yfinance>=1.6.0
 sqlalchemy
 dotenv
 psycopg2-binary

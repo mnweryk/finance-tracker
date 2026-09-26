@@ -1,0 +1,106 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
+    restart: unless-stopped
+    env_file:
+      - ../.secrets/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finance_net
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../.secrets/grafana.env
+      - ../.secrets/postgres.env
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_ENV_PROVIDERS_ENABLE=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ../grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ../grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ../grafana/dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    networks:
+      - finance_net
+
+  finance-tracker:
+    image: finance-tracker:0.0.1
+    container_name: finance-tracker
+    restart: on-failure:3
+    env_file:
+      - ../.secrets/postgres.env
+    environment:
+      INTERVAL: ${INTERVAL:-12h}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    secrets:
+      - google_creds
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+    entrypoint:
+      - /bin/sh
+      - -c
+    command:
+      - |
+        while true; do
+          echo "Starting finance tracker..."
+          python src/finance_manager.py
+          echo "Waiting ${INTERVAL:-12h} seconds before next run"
+          sleep ${INTERVAL:-12h}
+        done
+    networks:
+      - finance_net
+
+secrets:
+  google_creds:
+    file: ../.secrets/google_credentials.json
+
+volumes:
+  postgres_data:
+
+networks:
+  finance_net:
+    driver: bridge

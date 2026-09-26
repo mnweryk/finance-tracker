@@ -17,7 +17,7 @@ from db.connection import DatabaseConnection
 from db.repository import SnapshotRepository
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SECRETS_PATH = PROJECT_ROOT / ".secrets" / "secrets.env"
+DEFAULT_SECRETS_PATH = PROJECT_ROOT / ".secrets" / "postgres.env"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -109,11 +109,7 @@ class FinanceManager:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Load holdings and optionally save a database snapshot.")
-    parser.add_argument(
-        "--skip_database_save",
-        action="store_true",
-        help="Load and display holdings without saving a snapshot to the database.",
-    )
+    parser.add_argument("--skip_database_save", action="store_true", help="Load and display holdings without saving a snapshot to the database.")
     args = parser.parse_args()
 
     manager = FinanceManager(skip_database_save=args.skip_database_save)
@@ -123,7 +119,7 @@ if __name__ == "__main__":
     print(manager.wallet.print_wallet_portfolios())
 
     if not manager.skip_database_save:
-        db_connection = DatabaseConnection(manager._config.db_config)
+        db_connection = DatabaseConnection(manager._config.db_config, init_db=True)
 
         with db_connection.get_session() as session:
             db_snapshot_repository = SnapshotRepository(session=session)
