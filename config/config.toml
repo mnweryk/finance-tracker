@@ -1,3 +1,4 @@
+# Note - this config is used only for local run - used for development. For running application in container (recommended), please use docker/config.toml
 [google_sheets]
 spreadsheet_id = "11hl-3ZrW_qhmh9NdaHlZ7T4rv9h-BueOZbHlbEkiF9Q"
 credentials_path = ".secrets/google_credentials.json"
