@@ -60,7 +60,7 @@ services:
       - finance_net
 
   finance-tracker:
-    image: finance-tracker:0.0.1
+    image: gosia23322332/finance-tracker:0.0.2
     container_name: finance-tracker
     restart: on-failure:3
     env_file:

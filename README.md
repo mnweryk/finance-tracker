@@ -72,13 +72,7 @@ GF_SECURITY_ADMIN_PASSWORD=<password>
 
 Application is designed to  be run inside docker container. To start PostgreSQL, grafana and application use docker-compose
 
-1. build application finance-tracker
-```sh
-cd docker
-docker build -t finance-tracker:0.0.1 -f Dockerfile ..
-```
-
-2. Start containers inside docker directory
+1. Start containers inside docker directory
 ```sh
 docker compose up -d
 ```
