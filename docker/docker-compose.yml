@@ -28,7 +28,7 @@ services:
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     env_file:
       - ../.secrets/grafana.env
       - ../.secrets/postgres.env
@@ -60,13 +60,15 @@ services:
       - finance_net
 
   finance-tracker:
-    image: gosia23322332/finance-tracker:0.0.2
+    image: gosia23322332/finance-tracker:0.0.3
     container_name: finance-tracker
     restart: on-failure:3
     env_file:
       - ../.secrets/postgres.env
     environment:
       INTERVAL: ${INTERVAL:-12h}
+    volumes:
+      - ../config/config.toml:/app/config/config.toml 
     depends_on:
       postgres:
         condition: service_healthy

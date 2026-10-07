@@ -1,9 +1,0 @@
-[google_sheets]
-spreadsheet_id = "11hl-3ZrW_qhmh9NdaHlZ7T4rv9h-BueOZbHlbEkiF9Q"
-credentials_path = "/run/secrets/google_creds"
-worksheets = ["Cash", "Bond", "Crypto", "Gold", "Stock"]
-
-[database]
-host = "postgres"
-port = 5432
-name = "finance_db"

@@ -35,8 +35,9 @@ git clone <repository-url>
 ```
 
 ### Prepare configuration file
+Config file exists in `config/config.toml`. It is configured to run application inside docker container.
 
-`config/config.toml` contains project settings. Fillup Google credentials and database options. 
+Fill up Google credentials and database options. 
 
 **Obtain Google credentials**
 
@@ -48,7 +49,7 @@ https://docs.cloud.google.com/iam/docs/service-accounts-create and https://docs.
 
 **Database preparation**
 
-Fill in database configuration (PostgreSQL is currently supported driver)  in `docker/config.toml`. 
+Fill in database configuration (PostgreSQL is currently supported driver)  in `config/config.toml`. 
 
 ### Secrets preparation
 
